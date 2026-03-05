@@ -1,0 +1,33 @@
+#include <SPI.h>
+#include <nRF24L01.h>
+#include <RF24.h>
+// Pines Arduino UNO
+#define CE_PIN   9
+#define CSN_PIN  10
+RF24 radio(CE_PIN, CSN_PIN);
+
+const byte address[6] = "ESP32";
+bool switchState = false;
+void setup() {
+  Serial.begin(9600);
+  if (!radio.begin()) {
+    Serial.println("Radio no detectada");
+    while (1);
+  }
+  radio.setChannel(77);        // MISMO canal que ESP32
+  radio.setPALevel(RF24_PA_MIN);
+  radio.openWritingPipe(address);
+  radio.stopListening();
+  Serial.println("Arduino Transmitter Ready");
+}
+void loop() {
+  switchState = !switchState;  // Cambia entre true y false
+  bool enviado = radio.write(&switchState, sizeof(switchState));
+  if (enviado) {
+    Serial.print("Enviado: ");
+    Serial.println(switchState);
+  } else {
+    Serial.println("Error al enviar");
+  }
+  delay(1000);
+}

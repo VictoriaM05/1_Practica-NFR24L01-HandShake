@@ -1,36 +1,63 @@
 #include <SPI.h>
 #include <nRF24L01.h>
 #include <RF24.h>
-// Pines ESP32
-#define CE_PIN   4
-#define CSN_PIN  5
-#define SCK_PIN  14
-#define MOSI_PIN 13
-#define MISO_PIN 12
-#define LED_PIN  2
+
+#define CE_PIN   9
+#define CSN_PIN  10
+
+// Se crea el objeto radio indicando los pines CE y CSN
 RF24 radio(CE_PIN, CSN_PIN);
 
+// Dirección de comunicación (debe ser la misma en el transmisor y el receptor)
 const byte address[6] = "ESP32";
-bool switchState;
+
+// Variable que se enviará al receptor
+bool switchState = false;
+
 void setup() {
-  pinMode(LED_PIN, OUTPUT);
-  Serial.begin(115200);
-  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CSN_PIN);
+
+  // Inicializa la comunicación serial para monitorear datos
+  Serial.begin(9600);
+
+  // Inicializa el módulo NRF24L01
   if (!radio.begin()) {
     Serial.println("Radio no detectada");
-    while (1);
+    while (1); // Detiene el programa si el módulo no se detecta
   }
-  radio.setChannel(77);              
+
+
+
+  // Configura el canal de comunicación
+  radio.setChannel(77);
+
+  // Configura el nivel de potencia de transmisión
   radio.setPALevel(RF24_PA_MIN);
-  radio.openReadingPipe(0, address);
-  radio.startListening();
-  Serial.println("ESP32 Receiver Ready");
+
+  // Abre el canal de escritura para enviar datos
+  radio.openWritingPipe(address);
+
+  // Coloca el módulo en modo transmisor
+  radio.stopListening();
+
+  Serial.println("Arduino Transmitter Ready");
 }
+
 void loop() {
-  if (radio.available()) {
-    radio.read(&switchState, sizeof(switchState));
-    Serial.print("Recibido: ");
+
+  // Cambia el valor de la variable entre true y false
+  switchState = !switchState;
+
+  // Envía el dato al receptor
+  bool enviado = radio.write(&switchState, sizeof(switchState));
+
+  // Verifica si el envío fue exitoso
+  if (enviado) {
+    Serial.print("Enviado: ");
     Serial.println(switchState);
-    digitalWrite(¿LED_PIN, switchState ? HIGH : LOW);
+  } else {
+    Serial.println("Error al enviar");
   }
-}  
+  // Espera 1 segundo antes de enviar el siguiente dato
+  delay(1000);
+ }
+}

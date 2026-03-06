@@ -2,62 +2,66 @@
 #include <nRF24L01.h>
 #include <RF24.h>
 
-#define CE_PIN   9
-#define CSN_PIN  10
+#define CE_PIN   4
+#define CSN_PIN  5
+#define SCK_PIN  14
+#define MOSI_PIN 13
+#define MISO_PIN 12
+#define LED_PIN  2
 
-// Se crea el objeto radio indicando los pines CE y CSN
+// Se crea el objeto radio
 RF24 radio(CE_PIN, CSN_PIN);
 
-// Dirección de comunicación (debe ser la misma en el transmisor y el receptor)
+// Dirección de comunicación (debe ser la misma que el transmisor)
 const byte address[6] = "ESP32";
 
-// Variable que se enviará al receptor
-bool switchState = false;
+// Variable donde se almacenará el dato recibido
+bool switchState;
 
 void setup() {
 
-  // Inicializa la comunicación serial para monitorear datos
-  Serial.begin(9600);
+  // Configura el pin del LED como salida
+  pinMode(LED_PIN, OUTPUT);
+
+  // Inicializa la comunicación serial
+  Serial.begin(115200);
+
+  // Inicializa el bus SPI con los pines definidos
+  SPI.begin(SCK_PIN, MISO_PIN, MOSI_PIN, CSN_PIN);
 
   // Inicializa el módulo NRF24L01
   if (!radio.begin()) {
     Serial.println("Radio no detectada");
-    while (1); // Detiene el programa si el módulo no se detecta
+    while (1); // Detiene el programa si no detecta el módulo
   }
 
-
-
-  // Configura el canal de comunicación
+  // Configura el mismo canal que el transmisor
   radio.setChannel(77);
 
-  // Configura el nivel de potencia de transmisión
+  // Configura el nivel de potencia
   radio.setPALevel(RF24_PA_MIN);
 
-  // Abre el canal de escritura para enviar datos
-  radio.openWritingPipe(address);
+  // Abre un canal de lectura
+  radio.openReadingPipe(0, address);
 
-  // Coloca el módulo en modo transmisor
-  radio.stopListening();
+  // Coloca el módulo en modo receptor
+  radio.startListening();
 
-  Serial.println("Arduino Transmitter Ready");
+  Serial.println("ESP32 Receiver Ready");
 }
 
 void loop() {
 
-  // Cambia el valor de la variable entre true y false
-  switchState = !switchState;
+  // Verifica si hay datos disponibles
+  if (radio.available()) {
 
-  // Envía el dato al receptor
-  bool enviado = radio.write(&switchState, sizeof(switchState));
-
-  // Verifica si el envío fue exitoso
-  if (enviado) {
-    Serial.print("Enviado: ");
+    // Lee el dato recibido
+    radio.read(&switchState, sizeof(switchState));
+    Serial.print("Recibido: ");
     Serial.println(switchState);
-  } else {
-    Serial.println("Error al enviar");
+
+    // Enciende o apaga el LED según el valor recibido
+    digitalWrite(LED_PIN, switchState ? HIGH : LOW);
   }
-  // Espera 1 segundo antes de enviar el siguiente dato
-  delay(1000);
- }
 }
+
